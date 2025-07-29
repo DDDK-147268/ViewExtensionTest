@@ -1,0 +1,15 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UnrealEditor-GBufferTest.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"D:\UnrealProjects\learningC\Intermediate\Build\Win64\x64\learningCEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h.obj"
+"D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\x64\UnrealEditor\Development\GBufferTest\Module.GBufferTest.cpp.obj"
+"D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\x64\UnrealEditor\Development\GBufferTest\GBufferTest.cpp.obj"
+"D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\x64\UnrealEditor\Development\GBufferTest\GBufferTestModule.cpp.obj"
+"D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\x64\UnrealEditor\Development\GBufferTest\GBufferTestSceneViewExtension.cpp.obj"
+"D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\x64\UnrealEditor\Development\GBufferTest\Default.rc2.res"
+/OUT:"D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\x64\UnrealEditor\Development\GBufferTest\UnrealEditor-GBufferTest.lib"

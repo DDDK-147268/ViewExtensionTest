@@ -1,0 +1,13 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.GBufferTest.cpp.obj": [
+			"GBufferTest.gen.cpp.obj",
+			"GBufferTest.init.gen.cpp.obj",
+			"PerModuleInline.gen.cpp.obj",
+			"GBufferTest.cpp.obj",
+			"GBufferTestModule.cpp.obj",
+			"GBufferTestSceneViewExtension.cpp.obj"
+		]
+	}
+}

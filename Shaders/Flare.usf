@@ -1,0 +1,167 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/SceneTexturesCommon.ush"
+#include "/Engine/Public/Platform.ush"
+
+//VS 的参数
+Texture2D InputTexture;
+//float4 TestColor;
+SamplerState InputSampler;
+//float2 TextureSize;
+float PixelSegment;
+float2 UVRatio;
+float FlareBokehSize;
+float FlareThreshold;
+
+
+//VS 的函数
+float2 PixelToScreenPos(float2 PixelPos)
+{
+    const float2 ScreenPosToViewportBias = View.ViewSizeAndInvSize.xy / 2.0f;
+    const float2 ScreenPosToViewportScale = View.ViewSizeAndInvSize.xy / 2.0f;
+    return (PixelPos - ScreenPosToViewportBias) / ScreenPosToViewportScale;
+}
+float DiscMask(float2 ScreenPos)//屏幕中心的圆盘遮罩
+{
+    float x = saturate(1.0f - dot(ScreenPos, ScreenPos));
+
+    return x * x;
+}
+float3 RGBToHSV(float3 c)
+{
+    float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+    float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+float3 HSVToRGB(float3 c)
+{
+    float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * lerp(K.xxx, saturate(p - K.xxx), c.y);
+}
+
+#define QUADS_PER_INSTANCE 4
+static const float Threshold = 2.0f;
+static const float KernelSize = 4.0f;
+static const float MaxLumiScale = 30.0f;
+
+void FlareVS(
+    uint VertexID : SV_VertexID,
+    uint InstanceID : SV_InstanceID, 
+    out noperspective float2 OutUV : TEXCOORD0, //noperspective 是为了避免插值时的 perspective correction
+    out noperspective float4 OutColor : TEXCOORD1,
+    out float4 DEBUG : TEXCOORD2,
+    out float4 OutPosition : SV_POSITION)
+{
+    float2 ViewportMin = View.ViewRectMinAndSize.xy; // 视口左上角最小坐标
+    float2 ViewSize = View.ViewSizeAndInvSize.xy; //TextureSize; 
+    float2 ViewInvSize = 1.0 / ViewSize; // View.ViewSizeAndInvSize.zw;
+    
+	//// 重新映射索引，将vertexid映射为VId，将quadid映射为IId
+ //   // DrawPrimitive 中根据 PixelSegment 对像素进行了分割，Instance对应一个划分后的区块
+ //   // 现在要将每个区块的6个顶点划分为4个四边形，每个四边形作为一个实例
+    //uint VId = VertexID;
+    //uint IId = InstanceID;
+    //IId = IId * QUADS_PER_INSTANCE + (VId / 6);
+    //VId = VId % 6;
+ //   //规定 VID 所对应的顶点位置
+ //   // Triangle A: 0:left top, 1:right top, 2: left bottom
+	//// Triangle B: 3:right bottom, 4:left bottom, 5: right top
+    
+ //   // 计算本地位置，也相当于UV
+
+	////temp separate samler
+    const float Segment = PixelSegment; // TODO : Need Expose to Parameters
+    //float2 TilePos = float2(IId % ViewSize.x * Segment, IId / (ViewSize.x / (Segment * 4))) + ViewportMin; // 在ScreenPos的位置 ， [0 ~ ViewSize]
+    uint Vid = VertexID % 6;
+    float2 LocalPos = float2(Vid % 2, Vid > 1 && Vid < 5); // 0~1 的 Position ，同时被用于当作UV
+    float2 InstancePos = float2(InstanceID % (ViewSize.x / Segment) * Segment, InstanceID / (ViewSize.x / Segment) * Segment) + ViewportMin;
+    float2 TilePos = InstancePos;
+        
+	////添加一点随机偏移值
+    float2 TilePos_Random = float2(PseudoRandom(InstanceID), PseudoRandom(InstanceID + 2.54));
+    TilePos += TilePos_Random * 4;
+    
+    OutUV = LocalPos.xy;
+    
+    float2 InputUV = clamp(ViewInvSize * TilePos, 0, 1);
+    InputUV.y = 1 - InputUV.y;
+    InputUV *= UVRatio; // 使UV对齐ViewFamily的UV
+    
+    // 从四个方向采样SceneColor
+    int mipmap = 0.0f;
+    
+    float2 L = float2(1, 0) * ViewInvSize * Segment / (mipmap + 1);
+    float2 R = float2(-1, 0) * ViewInvSize * Segment / (mipmap + 1);
+    float2 T = float2(0, 1) * ViewInvSize * Segment / (mipmap + 1);
+    float2 B = float2(0, -1) * ViewInvSize * Segment / (mipmap + 1);
+	
+    float4 SceneColor = InputTexture.SampleLevel(InputSampler, InputUV, mipmap);
+    float4 SceneColor_L = InputTexture.SampleLevel(InputSampler, InputUV + L, mipmap);
+    float4 SceneColor_R = InputTexture.SampleLevel(InputSampler, InputUV + R, mipmap);
+    float4 SceneColor_T = InputTexture.SampleLevel(InputSampler, InputUV + T, mipmap);
+    float4 SceneColor_B = InputTexture.SampleLevel(InputSampler, InputUV + B, mipmap);
+
+    //TilePos Offset 让他们更加靠近亮的地方
+    //float Lumi_L_Diff = max(Luminance(SceneColor_L - SceneColor), 0);
+    //float Lumi_R_Diff = max(Luminance(SceneColor_R - SceneColor), 0);
+    //float Lumi_T_Diff = max(Luminance(SceneColor_T - SceneColor), 0);
+    //float Lumi_B_Diff = max(Luminance(SceneColor_B - SceneColor), 0);
+    //float2 TilePos_Offset = float2(0, 0);
+    //TilePos_Offset += (Lumi_L_Diff - Lumi_R_Diff) > 0 ? float2(1, 0) : float2(0, 0);
+    //TilePos_Offset += (Lumi_R_Diff - Lumi_L_Diff) > 0 ? float2(-1, 0) : float2(0, 0);
+    //TilePos_Offset += (Lumi_T_Diff - Lumi_B_Diff) > 0 ? float2(0, 1) : float2(0, 0);
+    //TilePos_Offset += (Lumi_B_Diff - Lumi_T_Diff) > 0 ? float2(0, -1) : float2(0, 0);
+    //TilePos_Offset = normalize(TilePos_Offset);
+    //TilePos_Offset *= SampleSize;
+    //TilePos += TilePos_Offset;
+    float RandomScale = 1 + PseudoRandom(TilePos);
+    float ThresholdScaled = (FlareThreshold - 0.1) * 2;
+    
+    //SceneColor *= DiscMask(OutPosition.xy); // 这段存疑，按道理来说OutPosition应该未定义，这里应该是 InputUV
+	////OutColor = SceneColor;
+    float4 AvengeColor = (SceneColor + SceneColor_L + SceneColor_R + SceneColor_T + SceneColor_B)/5.0;
+    OutColor = SceneColor;
+    const float AvengeLuminance = (AvengeColor.r * 0.2 + AvengeColor.g * 0.7 + AvengeColor.b * 0.1); // 加权平均的亮度
+    float FlareRange = (AvengeLuminance < ThresholdScaled) ? 0.0f : 1.0f; // 亮度小于阈值时，缩放为0
+    const float Lumi_Scale = (saturate((AvengeLuminance - ThresholdScaled) / MaxLumiScale) + 1) * FlareBokehSize; // 计算亮度缩放
+    
+    //DEBUG = float4(InputUV, 0, 1);
+	
+    OutPosition = float4(0, 0, 0, 1);
+	
+    OutPosition.xy = PixelToScreenPos(TilePos); //GuardBandScaleInverse; //在裁剪空间的位置 [-1 , 1]
+    OutPosition.xy += 2.0 * (LocalPos - 0.5f) * ViewInvSize * Lumi_Scale * RandomScale * FlareRange * Segment; //根据亮度放大Flare面片
+	
+	////OutColor = float4(1,0.5,0.25,1);
+	////TODO: Finish VertexShaeer
+
+}
+
+
+//PS 的参数
+Texture2D InputBokehTexture;
+SamplerState InputBokehSampler;
+static const float MaxColorLuminance = 20.0f;
+
+void FlarePS(
+	in noperspective float2 InUV : TEXCOORD0,
+	in noperspective float4 InColor : TEXCOORD1,
+	in float4 DEBUG : TEXCOORD2,
+	in float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+    float4 BokehTexture = InputBokehTexture.SampleLevel(InputBokehSampler, InUV, 0);
+
+    float3 InColor_HSV = RGBToHSV(InColor);
+    InColor_HSV.z = min(InColor_HSV.z, MaxColorLuminance);
+    InColor.rgb = HSVToRGB(InColor_HSV);
+	
+    BokehTexture.rgb *= BokehTexture.a * InColor;
+	
+    OutColor = BokehTexture;
+
+    //OutColor = DEBUG;
+}
