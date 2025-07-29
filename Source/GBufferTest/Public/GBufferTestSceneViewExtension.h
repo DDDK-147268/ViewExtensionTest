@@ -37,5 +37,5 @@ public:
 
 private:
 	//TWeakObjectPtr<ASceneExtensionActor>* AssociatedPipelineObj;
-	UGBufferTestSubsystem* EngineSubsystem;
+	//UGBufferTestSubsystem* EngineSubsystem;
 };
