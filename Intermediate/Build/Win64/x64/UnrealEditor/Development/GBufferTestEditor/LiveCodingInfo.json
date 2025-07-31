@@ -1,0 +1,9 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.GBufferTestEditor.cpp.obj": [
+			"PerModuleInline.gen.cpp.obj",
+			"GBufferTestEditorModule.cpp.obj"
+		]
+	}
+}

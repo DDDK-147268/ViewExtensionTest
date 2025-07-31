@@ -35,13 +35,15 @@ public class GBufferTest : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine",
+                "Engine",
 				"RenderCore",
 				"Renderer",
 				"RHI",
                 "Projects",
+                "UnrealEd",
                 "Slate",
 				"SlateCore",
+                "PlacementMode",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

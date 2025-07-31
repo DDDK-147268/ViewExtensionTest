@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GBufferTestModule.h"
+#include "GBufferTest.h"
 #include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "FGBufferTestModule"
@@ -10,6 +11,7 @@ void FGBufferTestModule::StartupModule()
 	//获取插件目录路径，并添加着色器源目录映射。
 	FString PluginShaderPath = IPluginManager::Get().FindPlugin(TEXT("GBufferTest"))->GetBaseDir() / TEXT("Shaders");
 	AddShaderSourceDirectoryMapping(TEXT("/GBufferTest"), PluginShaderPath);
+
 }
 
 void FGBufferTestModule::ShutdownModule()

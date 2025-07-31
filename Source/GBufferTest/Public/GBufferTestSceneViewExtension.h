@@ -4,6 +4,7 @@
 
 #include "SceneViewExtension.h"
 
+class UGBufferTestSubsystem;
 /*
 ------------------------------------------------------------------------------------------------------------------------------------------------
 创建一个SceneViewExtension，用于在渲染过程中添加自定义的GBuffer处理逻辑
@@ -12,8 +13,8 @@
 class FGBufferTestSceneViewExtension : public FSceneViewExtensionBase
 {
 public:
-	FGBufferTestSceneViewExtension(const FAutoRegister& AutoRegister)
-		: FSceneViewExtensionBase(AutoRegister)
+	FGBufferTestSceneViewExtension(const FAutoRegister& AutoRegister, UGBufferTestSubsystem* InWorldSubsystem)
+		: FSceneViewExtensionBase(AutoRegister), WorldSubsystem(InWorldSubsystem)
 	{
 	}
 
@@ -36,6 +37,5 @@ public:
 	//void ShouldEnableViewExtension();
 
 private:
-	//TWeakObjectPtr<ASceneExtensionActor>* AssociatedPipelineObj;
-	//UGBufferTestSubsystem* EngineSubsystem;
+	UGBufferTestSubsystem* WorldSubsystem;
 };

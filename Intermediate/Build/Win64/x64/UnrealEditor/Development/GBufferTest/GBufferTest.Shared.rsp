@@ -286,6 +286,7 @@
 /I "Editor\SceneDepthPickerMode\Public"
 /I "..\Intermediate\Build\Win64\UnrealEditor\Inc\AnimationEditMode\UHT"
 /I "Editor\AnimationEditMode\Public"
+/I "Editor\PlacementMode\Public"
 /I "D:\UnrealProjects\learningC\Plugins\GBufferTest\Intermediate\Build\Win64\UnrealEditor\Inc\GBufferTest\UHT"
 /I "D:\UnrealProjects\learningC\Plugins\GBufferTest\Source"
 /I "D:\UnrealProjects\learningC\Plugins\GBufferTest\Source\GBufferTest\Public"

@@ -2,6 +2,7 @@
 	"BuildId": "37670630",
 	"Modules": 
 	{
-		"GBufferTest": "UnrealEditor-GBufferTest.dll"
+		"GBufferTest": "UnrealEditor-GBufferTest.dll",
+		"GBufferTestEditor": "UnrealEditor-GBufferTestEditor.dll"
 	}
 }

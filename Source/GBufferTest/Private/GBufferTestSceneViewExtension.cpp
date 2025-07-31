@@ -1,4 +1,5 @@
 #include "GBufferTestSceneViewExtension.h"
+#include "GBufferTest.h"
 
 #include "CoreMinimal.h"
 #include "RenderCore.h"
@@ -13,10 +14,16 @@
 // FGBufferTestSceneViewExtension的实现
 void FGBufferTestSceneViewExtension::PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs)
 {
+	if(!WorldSubsystem || !WorldSubsystem->GBufferTest.IsValid() || !WorldSubsystem->GBufferTest->Active)
+	{
+		return; // 如果WorldSubsystem或GBufferTest无效或者GBufferTest的Active为Flase，则直接返回
+	}
+	AGBufferTest* GBufferTest = WorldSubsystem->GBufferTest.Get();
+
 	ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 
 	//CVarPixelSegment 是控制台变量，定义在RenderCore中，用于控制渲染线程中像素分段的数量，这里会返回默认值 8
-	const int PixelSegment = 8;
+	const int PixelSegment = GBufferTest->Segment;
 
 	//FIntPoint 是一个用于表示二维整数点的结构体，通常用于表示纹理或渲染目标的大小
 	//Extent 返回的是纹理在内存上的实际大小，比如 1920x1080 可能会返回为 1920x1088
@@ -53,16 +60,15 @@ void FGBufferTestSceneViewExtension::PrePostProcessPass_RenderThread(FRDGBuilder
 	VSPassParameters.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);	//获取ViewUniformBuffer
 
 	//Use Engine Lensflare Parameters 
-	VSPassParameters.FlareBokehSize = View.FinalPostProcessSettings.LensFlareBokehSize;
-	VSPassParameters.FlareThreshold = View.FinalPostProcessSettings.LensFlareThreshold;
+	VSPassParameters.FlareBokehSize = GBufferTest->Size;
+	VSPassParameters.FlareThreshold = GBufferTest->Threshold;
 
-	FRHITexture* BokehTextureRHI = GWhiteTexture->TextureRHI;//给一张白色纹理作为默认的Bokeh纹理
-	FFinalPostProcessSettings Settings = View.FinalPostProcessSettings;
+	FRHITexture* BokehTextureRHI = GTransparentBlackTexture->TextureRHI;//给一张黑色透明纹理作为默认的Bokeh纹理
 
-	//如果设置了LensFlareBokehShape，则获取其资源并设置BokehTextureRHI
-	if (Settings.LensFlareBokehShape)
+	//如果设置了BokehShape，则获取其资源并设置BokehTextureRHI
+	if (GBufferTest->BokehTextureRHI)
 	{
-		FTextureResource* BokehTextureResource = Settings.LensFlareBokehShape->GetResource();
+		FTextureResource* BokehTextureResource = GBufferTest->BokehTextureRHI->GetResource();
 
 		if (BokehTextureResource && BokehTextureResource->TextureRHI)
 		{
@@ -125,7 +131,7 @@ void FGBufferTestSceneViewExtension::PrePostProcessPass_RenderThread(FRDGBuilder
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSPassParameters);
 
 			//Set Vertex Stream
-			RHICmdList.SetStreamSource(0, nullptr, 0);//这里示例是一个全屏后处理Pass，所以无需顶点缓冲区
+			RHICmdList.SetStreamSource(0, nullptr, 0);//这里示例是一个全屏后处理Pass，所以无需顶点缓冲区，具体的顶点数据会在shader中计算
 
 			//计算实例大小
 			const int32 GLensFlareQuadsPerInstance = PixelSegment * PixelSegment;//PixelSegment * PixelSegment;
